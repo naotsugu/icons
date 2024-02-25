@@ -22,7 +22,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         let x = if size.0 < size.1 { (max - size.0) / 2 } else { 0 };
         let y = if size.0 < size.1 { (max - size.1) / 2 } else { 0 };
         buf.copy_from(&src_img, x, y)?;
-        image::DynamicImage::ImageRgba8(buf)
+        DynamicImage::ImageRgba8(buf)
     } else {
         image::open(&file_path)?
     };

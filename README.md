@@ -1,5 +1,10 @@
 # icons
 
+Generates Apple Icon Image format `icns` and Microsoft ICO file format `ico` files from PNG files.
+
+```shell
+icons <source_image.png>
+```
 
 
 ## Apple Icon Image format
@@ -33,21 +38,22 @@ The file format consists of an 8 byte header, followed by any number of icons.
 ```
 
 * OSType:
-  * ic10 : JPEG 2000 or PNG format (512x512@2x "retina")
-  * ic09 : JPEG 2000 or PNG format (512x512)
-  * ic14 : JPEG 2000 or PNG format (256x256@2x "retina")
-  * ic08 : JPEG 2000 or PNG format (256x256)
-  * ic13 : JPEG 2000 or PNG format (128x128@2x "retina")
-  * ic07 : JPEG 2000 or PNG format (128x128)
-  * ic12 : JPEG 2000 or PNG format (32x32@2x "retina")
-  * icp5 : JPEG 2000 or PNG format (32x32)
-  * ic11 : JPEG 2000 or PNG format (16x16@2x)
-  * icp4 : JPEG 2000 or PNG format (16x16.png)
+  * IS32 : 16×16 24-bit icon
+  * IL32 : 32x32 24-bit icon
+  * IH32 : 48×48 24-bit icon
+  * ICP6 : 64x64 32-bit PNG/JP2 icon
+  * IC07 : 128x128 32-bit PNG/JP2 icon
+  * IC08 : 256×256 32-bit PNG/JP2 icon
+  * IC09 : 512×512 32-bit PNG/JP2 icon
+  * IC11 : 16x16@2x "retina" 32-bit PNG/JP2 icon
+  * IC12 : 32x32@2x "retina" 32-bit PNG/JP2 icon
+  * IC13 : 128x128@2x "retina" 32-bit PNG/JP2 icon
+  * IC14 : 256x256@2x "retina" 32-bit PNG/JP2 icon
+  * IC10 : 512x512@2x "retina" 32-bit PNG/JP2 icon
 * data size
   * including type and length, in bytes
 * icon data
   * variable icon data
-
 
 
 ## ICO file format
