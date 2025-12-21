@@ -37,9 +37,15 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 /// Write icon as the apple icon image format.
 fn write_icns(src_img: &DynamicImage) -> Result<(), std::io::Error> {
+
+    let gutter = src_img.height() * 0.1 as u32;
+    let mut buf = RgbaImage::new(src_img.width() + gutter * 2, src_img.height() + gutter * 2);
+    buf.copy_from(src_img, gutter, gutter).unwrap();
+    let fit_src = DynamicImage::ImageRgba8(buf);
+
     let mut icons = IconFamily::new();
     for size in vec![16, 32, 48, 64, 128, 256, 512, 1024] {
-        let bytes = src_img
+        let bytes = if size < 64 { src_img } else { &fit_src }
             .resize(size, size, FilterType::Lanczos3)
             .to_rgba8()
             .to_vec();
