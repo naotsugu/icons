@@ -38,8 +38,10 @@ fn main() -> Result<(), Box<dyn Error>> {
 /// Write icon as the apple icon image format.
 fn write_icns(src_img: &DynamicImage) -> Result<(), std::io::Error> {
 
-    let gutter = src_img.height() * 0.1 as u32;
-    let mut buf = RgbaImage::new(src_img.width() + gutter * 2, src_img.height() + gutter * 2);
+    let gutter = src_img.height() * 0.2 as u32;
+    let mut buf = RgbaImage::new(
+        src_img.width() + gutter * 2,
+        src_img.height() + gutter * 2);
     buf.copy_from(src_img, gutter, gutter).unwrap();
     let fit_src = DynamicImage::ImageRgba8(buf);
 
