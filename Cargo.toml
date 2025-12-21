@@ -8,11 +8,11 @@ homepage = "https://github.com/naotsugu/icons"
 documentation = "https://github.com/naotsugu/icons"
 repository = "https://github.com/naotsugu/icons"
 license = "Apache-2.0"
-keywords = ["icns", "icon"]
+keywords = ["icns", "icon", "ico"]
 categories = ["command-line-utilities"]
 
 [dependencies]
-image = "0.24.9"
+image = { version = "0.25.9", features = ["ico"] }
 icns = "0.3.1"
-ico = "0.3.0"
+ico = "0.5.0"
 
