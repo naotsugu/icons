@@ -2,8 +2,36 @@
 
 Generates Apple Icon Image format `icns` and Microsoft ICO file format `ico` files from PNG files.
 
+
+## Usage
+
+Run `icons` by passing a single PNG file or a directory path as an argument.
+
 ```shell
-icons <source_image.png>
+./icons <png_image_path | directory_path>
+```
+
+`icons` creates two icon files in the root execution directory:
+
+- `out.ico` **Windows Support (`.ico`)**: Generates an icon package with `16x16`, `32x32`, `48x48`, and `256x256` resolutions
+- `out.icns` **macOS Support (`.icns`)**: Generates an app-ready icon family with `16x16` up to `1024x1024` sizes, taking Retina displays (`@2x`) and official Apple design margin guidelines into account.
+
+If the aspect ratio of the source image is not 1:1, it will be automatically centered and treated as a square image.
+
+
+- **When running with a specific file:**
+  The tool scales (enlarges/reduces) the designated image file to generate an icon file containing various sizes.
+
+- **When running with a specific directory:**
+  The tool automatically selects the PNG file under the target directory whose size is closest to the required icon size. It then scales that selected image to generate an icon file containing all the various sizes.
+  *Note: If icon image quality is crucial (especially for smaller icons), please place appropriately sized images in the directory beforehand.*
+
+```
+images
+  ├ 16x16.png
+  ├ 32x32.png
+  ├ 48x48.png
+  └ 128x128.png
 ```
 
 

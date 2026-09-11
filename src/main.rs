@@ -1,80 +1,152 @@
-use std::error::Error;
-use std::fs::File;
-use std::io::{BufWriter};
-use icns::{IconFamily, Image, PixelFormat};
-use image::{DynamicImage, GenericImage, RgbaImage};
+use icns::IconFamily;
 use image::imageops::FilterType;
+use image::{GenericImageView, ImageBuffer, Rgba};
+use std::error::Error;
+use std::fs;
+use std::fs::File;
+use std::io::{BufWriter, ErrorKind};
+use std::path::{Path, PathBuf};
 
 fn main() -> Result<(), Box<dyn Error>> {
-
     let mut args = std::env::args().skip(1);
-    assert_eq!(args.len(), 1, "Arguments must be: file_path");
+    assert_eq!(args.len(), 1, "arguments must be: <png_file_path> or <dir_path>");
 
-    let file_path = args.next().unwrap();
+    let path = args.next().unwrap();
+    let path = Path::new(&path);
 
-    let size = image::image_dimensions(&file_path)?;
-
-    let src_img = if size.0 != size.1 {
-        // resize to square image
-        let max = std::cmp::max(size.0, size.1);
-        let mut buf = RgbaImage::new(max, max);
-        let src_img = image::open(&file_path)?.to_rgba8();
-        let x = if size.0 < size.1 { (max - size.0) / 2 } else { 0 };
-        let y = if size.0 < size.1 { (max - size.1) / 2 } else { 0 };
-        buf.copy_from(&src_img, x, y)?;
-        DynamicImage::ImageRgba8(buf)
+    // gather png files
+    let mut png_files: Vec<PathBuf> = Vec::new();
+    if path.metadata()?.is_file() {
+        if is_png(path) {
+            png_files.push(path.to_path_buf());
+        }
     } else {
-        image::open(&file_path)?
-    };
+        for entry in fs::read_dir(path)? {
+            let entry_path = entry?.path();
+            if entry_path.is_file() && is_png(&entry_path) {
+                png_files.push(entry_path);
+            }
+        }
+    }
+    if png_files.is_empty() {
+        return Err(Box::new(std::io::Error::new(
+            ErrorKind::NotFound, "pn files not found"),
+        ));
+    }
 
-    println!("src : [{}] {} x {}", file_path, src_img.width(), src_img.height());
+    let mut images: Vec<image::RgbaImage> = Vec::new();
+    for file_path in &png_files {
+        let img = image::open(file_path)?;
+        let (width, height) = img.dimensions();
+        let max_side = std::cmp::max(width, height);
+        let mut square_img = ImageBuffer::from_pixel(max_side, max_side, Rgba([0, 0, 0, 0]));
+        let x_offset = (max_side - width) / 2;
+        let y_offset = (max_side - height) / 2;
+        image::imageops::overlay(&mut square_img, &img, x_offset as i64, y_offset as i64);
+        images.push(square_img);
+    }
 
-    write_icns(&src_img)?;
-    write_ico(&src_img)?;
+    write_ico(&images)?;
+    write_icns(&images)?;
+
+    Ok(())
+}
+
+/// Write icon as the ico format (for windows).
+fn write_ico(images: &Vec<image::RgbaImage>) -> Result<(), std::io::Error> {
+
+    let target_sizes = [16, 32, 48, 256];
+    let mut icon_dir = ico::IconDir::new(ico::ResourceType::Icon);
+
+    for &size in &target_sizes {
+
+        // find the image with the closest size (minimum absolute difference in width)
+        let closest_img = images.iter()
+            .min_by_key(|img| (img.width() as i32 - size as i32).abs()).unwrap();
+
+        let resized_img = if closest_img.width() == size {
+            closest_img.clone()
+        } else {
+            // resize the image to the target size using a high-quality filter
+            image::imageops::resize(closest_img, size, size, FilterType::Lanczos3)
+        };
+
+        // create an IconImage from the raw RGBA pixels
+        let icon_image = ico::IconImage::from_rgba_data(size, size, resized_img.into_raw());
+
+        // add the image entry to the ICO directory
+        icon_dir.add_entry(ico::IconDirEntry::encode(&icon_image)?);
+    }
+
+    let file = std::fs::File::create("out.ico")?;
+    icon_dir.write(file)?;
 
     Ok(())
 }
 
 /// Write icon as the apple icon image format.
-fn write_icns(src_img: &DynamicImage) -> Result<(), std::io::Error> {
+fn write_icns(images: &Vec<image::RgbaImage>) -> Result<(), std::io::Error> {
 
-    let gutter = (src_img.height() as f32 * 0.2).trunc() as u32;
-
-    let mut buf = RgbaImage::new(
-        src_img.width() + gutter * 2,
-        src_img.height() + gutter * 2);
-    buf.copy_from(src_img, gutter, gutter).unwrap();
-    let fit_src = DynamicImage::ImageRgba8(buf);
+    // define standard target sizes required for macOS .icns files
+    let target_sizes = [16, 32, 64, 128, 256, 512, 1024];
 
     let mut icons = IconFamily::new();
-    for size in vec![16, 32, 48, 64, 128, 256, 512, 1024] {
-        let bytes = if size < 64 { src_img } else { &fit_src }
-            .resize(size, size, FilterType::Lanczos3)
-            .to_rgba8()
-            .to_vec();
-        let icon = Image::from_data(PixelFormat::RGBA, size, size, bytes)?;
-        icons.add_icon(&icon)?;
+
+    for &size in &target_sizes {
+
+        // apple icons usually leave about 10% to 20% margin around the content.
+        let content_size = match size {
+            16 => 14,
+            32 => 28,
+            64 => 56,
+            128 => 114,
+            256 => 210,
+            512 => 448,
+            1024 => 896,
+            _ => (size as f32 * 0.85) as u32, // fallback
+        };
+
+        // select the best source image (retina-friendly).
+        // prefer images that are equal to or larger than the required content_size
+        // to prevent upscaling blur, falling back to the closest smaller image if none found.
+        let closest_img = images.iter()
+            .min_by_key(|img| {
+                let diff = img.width() as i32 - content_size as i32;
+                if diff >= 0 { diff } else { diff.abs() + 10000 } // penalty for smaller images
+            }).unwrap();
+
+        // resize the source image to fit the active content area
+        let resized_content = if closest_img.width() == content_size {
+            closest_img.clone()
+        } else {
+            image::imageops::resize(closest_img, content_size, content_size, FilterType::Lanczos3)
+        };
+
+        // create an actual icon size image
+        let mut padded_img = ImageBuffer::from_pixel(size, size, Rgba([0, 0, 0, 0]));
+
+        // place the resized content into the center of the canvas to form the margins
+        let offset = (size - content_size) / 2;
+        image::imageops::overlay(&mut padded_img, &resized_content, offset as i64, offset as i64);
+
+        // convert RgbaImage data into raw RGBA bytes and register to icns
+        let icns_image = icns::Image::from_data(
+            icns::PixelFormat::RGBA, size, size, padded_img.into_raw())?;
+
+        // add the image entry to the icons icon family
+        icons.add_icon(&icns_image)?;
+
     }
 
     let out = BufWriter::new(File::create("out.icns")?);
-    icons.write(out)
+    icons.write(out)?;
+
+    Ok(())
 }
 
-
-/// Write icon as the ico format.
-fn write_ico(src_img: &DynamicImage) -> Result<(), std::io::Error> {
-
-    let mut icon_dir = ico::IconDir::new(ico::ResourceType::Icon);
-
-    for size in vec![16, 32, 48, 256] {
-        let bytes = src_img
-            .resize(size, size, FilterType::Lanczos3)
-            .to_rgba8()
-            .to_vec();
-        let image = ico::IconImage::from_rgba_data(size, size, bytes);
-        icon_dir.add_entry(ico::IconDirEntry::encode(&image).unwrap());
-    }
-
-    let file = std::fs::File::create("out.ico")?;
-    icon_dir.write(file)
+fn is_png(path: &Path) -> bool {
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .map(|s| s.eq_ignore_ascii_case("png"))
+        .unwrap_or(false)
 }

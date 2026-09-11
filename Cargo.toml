@@ -12,7 +12,6 @@ keywords = ["icns", "icon", "ico"]
 categories = ["command-line-utilities"]
 
 [dependencies]
-image = { version = "0.25.9", features = ["ico"] }
-icns = "0.3.1"
+image = { version = "0.25.10", features = ["ico"] }
+icns = "0.4.0"
 ico = "0.5.0"
-
