@@ -1,0 +1,71 @@
+name: Create release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Publish for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact_name: icons
+            asset_name: icons-linux-x64.zip
+          - os: ubuntu-24.04-arm
+            artifact_name: icons
+            asset_name: icons-linux-aarch64.zip
+          - os: macos-latest
+            artifact_name: icons
+            asset_name: icons-macos-amd64.zip
+          - os: macos-15-intel
+            artifact_name: icons
+            asset_name: icons-macos-x64.zip
+          - os: windows-latest
+            artifact_name: icons.exe
+            asset_name: icons-windows-x64.zip
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust Cache
+        uses: swatinem/rust-cache@v2
+
+      - name: Build Release
+        run: cargo build --release
+
+      - name: Package asset (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          powershell Compress-Archive -Path target/release/${{ matrix.artifact_name }} -DestinationPath ${{ matrix.asset_name }}
+
+      - name: Package asset (Linux / macOS)
+        if: matrix.os != 'windows-latest'
+        run: |
+          cd target/release
+          zip ../../${{ matrix.asset_name }} ${{ matrix.artifact_name }}
+          cd -
+
+      - name: Rename artifact (Linux / macOS)
+        if: matrix.os != 'windows-latest'
+        run: mv target/release/${{ matrix.artifact_name }} target/release/${{ matrix.asset_name }}
+
+      - name: Rename artifact (Windows)
+        if: matrix.os == 'windows-latest'
+        run: Rename-Item target/release/${{ matrix.artifact_name }} ${{ matrix.asset_name }}
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.asset_name }}
