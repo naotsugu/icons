@@ -68,7 +68,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 /// Write icon as the ico format (for windows).
 fn write_ico(images: &Vec<image::RgbaImage>) -> Result<(), std::io::Error> {
 
-    let target_sizes = [16, 32, 48, 256];
+    let target_sizes = [16, 20, 24, 32, 48, 256];
     let mut icon_dir = ico::IconDir::new(ico::ResourceType::Icon);
 
     for &size in &target_sizes {

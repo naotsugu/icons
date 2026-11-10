@@ -13,7 +13,7 @@ Run `icons` by passing a single PNG file or a directory path as an argument.
 
 `icons` creates two icon files in the root execution directory:
 
-- `out.ico` **Windows Support (`.ico`)**: Generates an icon package with `16x16`, `32x32`, `48x48`, and `256x256` resolutions
+- `out.ico` **Windows Support (`.ico`)**: Generates an icon package with `16x16`, `20x20`(125% of 16x16), `24x24`(150% of 16x16), `32x32`, `48x48`, and `256x256` resolutions
 - `out.icns` **macOS Support (`.icns`)**: Generates an app-ready icon family with `16x16` up to `1024x1024` sizes, taking Retina displays (`@2x`) and official Apple design margin guidelines into account.
 
 If the aspect ratio of the source image is not 1:1, it will be automatically centered and treated as a square image.
